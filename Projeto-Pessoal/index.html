@@ -1,345 +1,837 @@
--- =========================================================
--- BANCO DE DADOS: ESMERALD - WARZONE COMPETITIVE HUB
--- SGBD: MySQL
--- Objetivo: guardar usuários, armas, acessórios, rankings, banners e loadouts.
--- Observação: o front-end atual usa dados em JavaScript e LocalStorage.
--- Este banco prepara o sistema para uma versão com backend real.
--- =========================================================
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>ESMERALD · Warzone Competitive Hub</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-CREATE DATABASE IF NOT EXISTS esmerald_db
-CHARACTER SET utf8mb4
-COLLATE utf8mb4_unicode_ci;
+    body {
+      background: #02070c;
+      font-family: 'Inter', sans-serif;
+      color: #e2e8f0;
+      overflow-x: hidden;
+      line-height: 1.5;
+      scroll-behavior: smooth;
+    }
 
-USE esmerald_db;
+    /* FUNDO COM BOLHAS DE LUZ (AZUL ESCURO) */
+    .glass-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #030a12;
+      z-index: -2;
+    }
+    
+    /* BOLHAS FLUTUANTES (ATRÁS DO VIDRO) */
+    .light-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(60px);
+      pointer-events: none;
+      z-index: -1;
+      opacity: 0.4;
+    }
+    .orb-1 {
+      width: 300px;
+      height: 300px;
+      background: #3b82f6;
+      top: 10%;
+      left: -100px;
+      animation: floatOrb 20s ease-in-out infinite;
+    }
+    .orb-2 {
+      width: 400px;
+      height: 400px;
+      background: #60a5fa;
+      bottom: 5%;
+      right: -150px;
+      animation: floatOrb 25s ease-in-out infinite reverse;
+    }
+    .orb-3 {
+      width: 200px;
+      height: 200px;
+      background: #1e40af;
+      top: 40%;
+      right: 20%;
+      animation: floatOrb 18s ease-in-out infinite;
+    }
+    .orb-4 {
+      width: 250px;
+      height: 250px;
+      background: #93c5fd;
+      bottom: 20%;
+      left: 10%;
+      animation: floatOrb 22s ease-in-out infinite reverse;
+    }
+    @keyframes floatOrb {
+      0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.3; }
+      50% { transform: translate(30px, -20px) scale(1.1); opacity: 0.5; }
+    }
 
--- =========================================================
--- USUÁRIOS
--- Guarda os dados de cadastro. A senha deve ser salva como hash no backend.
--- =========================================================
+    /* GLASSMORPHISM */
+    .glass {
+      background: rgba(8, 20, 30, 0.55);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(59, 130, 246, 0.25);
+      border-radius: 28px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+    
+    .glass-card {
+      background: rgba(6, 16, 24, 0.5);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      border-radius: 24px;
+      transition: all 0.2s ease;
+    }
 
-CREATE TABLE usuarios (
-    id_usuario INT AUTO_INCREMENT PRIMARY KEY,
-    nome VARCHAR(100) NOT NULL,
-    email VARCHAR(150) NOT NULL UNIQUE,
-    senha_hash VARCHAR(255) NOT NULL,
-    data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+    /* NAVEGAÇÃO */
+    .navbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(3, 10, 18, 0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(59, 130, 246, 0.3);
+      padding: 0.8rem 5%;
+    }
+    .nav-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .logo {
+      font-size: 1.8rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #f0f9ff, #3b82f6);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      letter-spacing: -0.5px;
+    }
+    .nav-links {
+      display: flex;
+      gap: 1.8rem;
+      list-style: none;
+      flex-wrap: wrap;
+    }
+    .nav-links a {
+      color: #94a3b8;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: 0.2s;
+      cursor: pointer;
+    }
+    .nav-links a.active, .nav-links a:hover {
+      color: #60a5fa;
+      text-shadow: 0 0 6px rgba(96, 165, 250, 0.4);
+    }
+    .menu-toggle {
+      display: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #60a5fa;
+    }
+    .btn-primary {
+      background: linear-gradient(105deg, #1e3a8a, #3b82f6);
+      border: none;
+      padding: 0.8rem 2rem;
+      border-radius: 60px;
+      font-weight: 700;
+      color: white;
+      cursor: pointer;
+      transition: 0.2s;
+      box-shadow: 0 4px 15px rgba(59, 130, 246, 0.25);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+    }
+    .btn-outline {
+      background: transparent;
+      border: 1.5px solid #3b82f6;
+      padding: 0.7rem 1.8rem;
+      border-radius: 60px;
+      font-weight: 600;
+      color: #60a5fa;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .btn-outline:hover {
+      background: rgba(59, 130, 246, 0.15);
+      border-color: #60a5fa;
+    }
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem 5%;
+    }
+    section {
+      margin-bottom: 4rem;
+      scroll-margin-top: 90px;
+    }
 
--- =========================================================
--- CATEGORIAS DE ARMAS
--- Classificação geral das armas exibidas no sistema.
--- =========================================================
+    /* HERO LANDING */
+    .hero-landing {
+      text-align: center;
+      padding: 3rem 0 2rem;
+    }
+    .hero-landing h1 {
+      font-size: 3.5rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #f0f9ff, #60a5fa);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      margin-bottom: 1rem;
+    }
+    .hero-landing p {
+      color: #94a3b8;
+      max-width: 600px;
+      margin: 1rem auto;
+    }
 
-CREATE TABLE categorias_armas (
-    id_categoria INT AUTO_INCREMENT PRIMARY KEY,
-    nome_categoria VARCHAR(80) NOT NULL UNIQUE,
-    descricao TEXT
-);
+    /* CARROSSEL DE BANNERS */
+    .banner-container {
+      position: relative;
+      overflow: hidden;
+      border-radius: 28px;
+      margin: 2rem 0;
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+    }
+    .banner-track {
+      display: flex;
+      transition: transform 0.6s cubic-bezier(0.2, 0.9, 0.4, 1);
+    }
+    .banner-slide {
+      min-width: 100%;
+      position: relative;
+    }
+    .banner-slide img {
+      width: 100%;
+      height: 420px;
+      object-fit: cover;
+    }
+    .banner-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(0deg, #02070c, transparent);
+      padding: 2rem;
+    }
+    .banner-overlay h3 {
+      font-size: 1.8rem;
+      font-weight: 700;
+    }
+    .carousel-controls {
+      position: absolute;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      display: flex;
+      gap: 0.8rem;
+    }
+    .carousel-btn {
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(8px);
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 1px solid rgba(59, 130, 246, 0.5);
+      color: white;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .carousel-btn:hover {
+      background: #1e40af;
+    }
 
-INSERT INTO categorias_armas (nome_categoria, descricao) VALUES
-('Fuzil Assalto', 'Armas equilibradas para médio e longo alcance.'),
-('Submetralhadora', 'Armas leves com alta cadência e mobilidade para combate próximo.'),
-('Fuzil Precisão', 'Armas de alto dano para longas distâncias.'),
-('Pistola', 'Arma secundária leve para situações emergenciais.');
+    /* STATS E FEATURES */
+    .stats-container {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      flex-wrap: wrap;
+      margin: 2rem 0;
+    }
+    .stat-card {
+      text-align: center;
+      padding: 1.5rem 2rem;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 28px;
+      border-bottom: 2px solid #3b82f6;
+    }
+    .stat-number {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: #60a5fa;
+    }
+    .features-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2rem;
+      justify-content: center;
+      margin: 2rem 0;
+    }
+    .feature {
+      width: 260px;
+      padding: 2rem;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .feature:hover {
+      transform: translateY(-5px);
+      border-color: #3b82f6;
+    }
+    .feature i {
+      font-size: 2.5rem;
+      color: #60a5fa;
+      margin-bottom: 1rem;
+    }
 
--- =========================================================
--- ARMAS
--- Guarda os dados principais usados nos cards, ranking e construtor.
--- =========================================================
+    /* DASHBOARD (COMANDO) */
+    .dashboard-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2rem;
+      align-items: center;
+    }
+    .dashboard-info {
+      flex: 1;
+    }
+    .dashboard-stats {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      margin: 1.5rem 0;
+    }
+    .stat-badge {
+      background: rgba(0, 0, 0, 0.4);
+      padding: 1rem 1.5rem;
+      border-radius: 24px;
+      text-align: center;
+      min-width: 110px;
+    }
+    .stat-badge .value {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #60a5fa;
+    }
+    .weapon-visual {
+      flex: 1;
+      text-align: center;
+    }
+    .weapon-visual i {
+      font-size: 6rem;
+      color: #60a5fa;
+      filter: drop-shadow(0 0 20px #3b82f6);
+      animation: floatWeapon 3s infinite;
+    }
+    @keyframes floatWeapon {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    .info-card {
+      background: rgba(2, 12, 20, 0.6);
+      border-radius: 20px;
+      padding: 1.2rem;
+      border-left: 3px solid #3b82f6;
+    }
 
-CREATE TABLE armas (
-    id_arma INT AUTO_INCREMENT PRIMARY KEY,
-    nome VARCHAR(100) NOT NULL,
-    id_categoria INT NOT NULL,
-    dano_base INT NOT NULL,
-    cadencia_tiro INT NOT NULL,
-    mobilidade_base INT NOT NULL,
-    precisao_base INT NOT NULL,
-    controle_recuo INT NOT NULL,
-    taxa_uso DECIMAL(5,2) NOT NULL,
-    taxa_vitoria DECIMAL(5,2) NOT NULL,
-    imagem_url TEXT,
-    status_meta ENUM('Meta absoluto', 'Alta', 'Estável', 'Baixa') DEFAULT 'Estável',
-    descricao TEXT,
-    FOREIGN KEY (id_categoria) REFERENCES categorias_armas(id_categoria)
-);
+    /* ARSENAL (CARDS DAS ARMAS) */
+    .arsenal-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.8rem;
+      margin-top: 2rem;
+    }
+    .weapon-card {
+      background: rgba(4, 16, 24, 0.6);
+      backdrop-filter: blur(8px);
+      border-radius: 24px;
+      padding: 1.2rem;
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .weapon-card:hover {
+      transform: translateY(-5px);
+      border-color: #3b82f6;
+      background: rgba(8, 28, 40, 0.7);
+    }
+    .weapon-card img {
+      width: 100%;
+      height: 140px;
+      object-fit: cover;
+      border-radius: 16px;
+      margin-bottom: 0.8rem;
+    }
 
-INSERT INTO armas 
-(nome, id_categoria, dano_base, cadencia_tiro, mobilidade_base, precisao_base, controle_recuo, taxa_uso, taxa_vitoria, imagem_url, status_meta, descricao)
-VALUES
-('MK35 ISR', 1, 43, 680, 68, 89, 74, 38.40, 56.30, 'https://t4.ftcdn.net/jpg/05/68/60/33/360_F_568603373_myYg5WDPyja669cX4gMLRO7FdxxhbPtS.jpg', 'Meta absoluto', 'Fuzil de assalto com alto desempenho em médio e longo alcance.'),
-('Peacekeeper Mk1', 1, 41, 720, 74, 87, 72, 34.10, 54.20, 'https://t3.ftcdn.net/jpg/06/10/02/84/360_F_610028426_rb5JCwgkZucqtLNLod4BCRrOLLSAnA9u.jpg', 'Alta', 'Fuzil equilibrado com boa mobilidade e precisão.'),
-('Voyak KT-3', 1, 42, 700, 70, 86, 75, 31.80, 53.70, 'https://t4.ftcdn.net/jpg/05/68/60/33/360_F_568603356_YdbRu1rIdBdIvS2D5DigkeQU8YspIHlT.jpg', 'Alta', 'Fuzil de assalto estável, indicado para combates consistentes.'),
-('VST', 2, 35, 960, 95, 82, 69, 33.20, 54.90, 'https://t3.ftcdn.net/jpg/06/93/57/14/360_F_693571489_k8HHi7Owa04ijypL2Dj3qHoUg10Vjt4I.jpg', 'Alta', 'Submetralhadora rápida, indicada para combate próximo.'),
-('Razor 9mm', 2, 36, 940, 96, 83, 70, 32.50, 54.10, 'https://t3.ftcdn.net/jpg/05/36/36/68/360_F_536366823_XcGr4cJ2FTl4hTZq4fOH2g3cMmZxx2tV.jpg', 'Alta', 'SMG de alta mobilidade com bom controle.'),
-('Kogot-7', 2, 34, 970, 97, 81, 68, 30.80, 53.40, 'https://t3.ftcdn.net/jpg/11/63/70/32/360_F_1163703261_2Dqx3XnVNUmbGdSbS6h8pvvCjTTS6T6R.jpg', 'Alta', 'Submetralhadora muito veloz, boa para rush e movimentação.'),
-('Dravec 45', 2, 37, 890, 91, 84, 72, 29.40, 52.90, 'https://t3.ftcdn.net/jpg/06/35/91/98/360_F_635919818_eRo1Iie9KQlPJSK0HvMp96p4wCmUKkiW.jpg', 'Estável', 'SMG com dano superior, mas mobilidade um pouco menor.'),
-('Hawker HX', 3, 99, 45, 43, 96, 86, 25.30, 60.10, 'https://t4.ftcdn.net/jpg/05/68/60/33/360_F_568603373_myYg5WDPyja669cX4gMLRO7FdxxhbPtS.jpg', 'Alta', 'Fuzil de precisão de alto dano para longas distâncias.'),
-('Strider 300', 3, 97, 50, 45, 94, 84, 23.70, 58.60, 'https://t3.ftcdn.net/jpg/06/10/02/84/360_F_610028426_rb5JCwgkZucqtLNLod4BCRrOLLSAnA9u.jpg', 'Estável', 'Sniper com boa precisão e cadência levemente superior.'),
-('Velox 5.7', 4, 52, 320, 96, 84, 82, 18.50, 48.20, 'https://t4.ftcdn.net/jpg/05/68/60/33/360_F_568603356_YdbRu1rIdBdIvS2D5DigkeQU8YspIHlT.jpg', 'Baixa', 'Pistola leve para uso secundário.'),
-('TAQ-56', 1, 41, 710, 72, 86, 72, 34.20, 54.80, 'https://t4.ftcdn.net/jpg/05/68/60/33/360_F_568603373_myYg5WDPyja669cX4gMLRO7FdxxhbPtS.jpg', 'Alta', 'Fuzil legado com bom equilíbrio geral.'),
-('ISO HAVOC', 2, 34, 980, 94, 81, 68, 29.50, 53.20, 'https://t3.ftcdn.net/jpg/11/63/70/32/360_F_1163703261_2Dqx3XnVNUmbGdSbS6h8pvvCjTTS6T6R.jpg', 'Estável', 'SMG de alta cadência e boa mobilidade.'),
-('FJX Imperium', 3, 98, 48, 44, 95, 85, 24.10, 59.10, 'https://t3.ftcdn.net/jpg/06/93/57/14/360_F_693571489_k8HHi7Owa04ijypL2Dj3qHoUg10Vjt4I.jpg', 'Alta', 'Fuzil de precisão legado com alto dano.');
+    /* CONSTRUTOR */
+    .builder-layout {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2rem;
+    }
+    .attachments-panel {
+      flex: 2;
+    }
+    .attach-slot {
+      background: rgba(4, 16, 24, 0.7);
+      border-radius: 20px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+    .attach-slot label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+      color: #60a5fa;
+      text-transform: uppercase;
+      font-size: 0.7rem;
+      letter-spacing: 1px;
+    }
+    select {
+      background: #071e2c;
+      border: 1px solid #3b82f6;
+      border-radius: 40px;
+      padding: 0.6rem 1rem;
+      color: #e2e8f0;
+      width: 100%;
+      font-family: inherit;
+    }
+    /* RANKING */
+    .ranking-header, .ranking-row {
+      display: grid;
+      grid-template-columns: 2.5fr 1fr 1fr 1fr;
+      padding: 1rem;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .ranking-header {
+      background: rgba(4, 16, 24, 0.8);
+      border-radius: 20px;
+      font-weight: 700;
+      color: #60a5fa;
+    }
+    .ranking-row {
+      background: rgba(2, 12, 20, 0.5);
+      border-radius: 16px;
+      margin-bottom: 0.5rem;
+      transition: all 0.2s;
+    }
+    .ranking-row:hover {
+      background: rgba(15, 35, 50, 0.7);
+      transform: translateX(4px);
+    }
+    .rank-img {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      object-fit: cover;
+      vertical-align: middle;
+      margin-right: 10px;
+    }
 
--- =========================================================
--- TIPOS DE ACESSÓRIOS
--- Categorias usadas no construtor de loadout.
--- =========================================================
+    /* MODAL DE LOGIN/CADASTRO */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(12px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-content {
+      background: #0a1922;
+      border-radius: 32px;
+      padding: 2rem;
+      max-width: 420px;
+      width: 90%;
+      border: 1px solid #3b82f6;
+    }
+    .modal-content input {
+      width: 100%;
+      padding: 0.8rem;
+      margin: 0.5rem 0;
+      background: #071e2c;
+      border: 1px solid #3b82f6;
+      border-radius: 12px;
+      color: white;
+    }
+    .user-badge {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      background: #0a1922;
+      padding: 0.3rem 1rem 0.3rem 1.5rem;
+      border-radius: 40px;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+    footer {
+      text-align: center;
+      padding: 2rem;
+      border-top: 1px solid rgba(59, 130, 246, 0.2);
+      font-size: 0.7rem;
+      color: #64748b;
+    }
 
-CREATE TABLE tipos_acessorios (
-    id_tipo INT AUTO_INCREMENT PRIMARY KEY,
-    nome_tipo VARCHAR(80) NOT NULL UNIQUE
-);
+    @media (max-width: 800px) {
+      .nav-links {
+        display: none;
+        flex-direction: column;
+        background: #030f18;
+        position: absolute;
+        top: 70px;
+        left: 0;
+        width: 100%;
+        padding: 1rem;
+        z-index: 300;
+        gap: 1rem;
+      }
+      .nav-links.active { display: flex; }
+      .menu-toggle { display: block; }
+      .hero-landing h1 { font-size: 2rem; }
+      .banner-slide img { height: 220px; }
+      .ranking-header, .ranking-row { grid-template-columns: 1.5fr 0.8fr 0.8fr 0.8fr; font-size: 0.7rem; }
+      .dashboard-grid { flex-direction: column; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+  <div class="glass-bg"></div>
+  <div class="light-orb orb-1"></div>
+  <div class="light-orb orb-2"></div>
+  <div class="light-orb orb-3"></div>
+  <div class="light-orb orb-4"></div>
 
-INSERT INTO tipos_acessorios (nome_tipo) VALUES
-('Muzzle'),
-('Barrel'),
-('Underbarrel'),
-('Mag'),
-('Optic');
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="logo">ESMERALD</div>
+      <div class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></div>
+      <ul class="nav-links" id="navLinks">
+        <li><a data-section="home" class="nav-section active">INÍCIO</a></li>
+        <li><a data-section="dashboard" class="nav-section">COMANDO</a></li>
+        <li><a data-section="arsenal" class="nav-section">ARSENAL</a></li>
+        <li><a data-section="builder" class="nav-section">CONSTRUTOR</a></li>
+        <li><a data-section="ranking" class="nav-section">RANKING</a></li>
+        <li><a data-section="saved" class="nav-section">ARQUIVO</a></li>
+      </ul>
+      <div class="auth-buttons" id="authContainer"></div>
+    </div>
+  </nav>
 
--- =========================================================
--- ACESSÓRIOS
--- Guarda os acessórios e seus bônus. Esses bônus alteram os status da arma.
--- =========================================================
+  <main>
+    <!-- ===================================================================== -->
+    <!-- SEÇÃO INÍCIO (LANDING PAGE) - CARROSSEL DE BANNERS                    -->
+    <section id="home-section">
+      <div class="container">
+        <div class="hero-landing">
+          <h1>INTELIGÊNCIA TÁTICA<br>PARA WARZONE</h1>
+          <p>Analise o meta real, construa loadouts perfeitos e domine o competitivo com dados de especialistas.</p>
+          <button class="btn-primary" id="goToDashboardBtn">ACESSAR SISTEMA</button>
+        </div>
+        <div class="stats-container">
+          <div class="stat-card"><div class="stat-number">+2.1M</div><div>Simulações TTK</div></div>
+          <div class="stat-card"><div class="stat-number">87%</div><div>Precisão Meta</div></div>
+          <div class="stat-card"><div class="stat-number">+12K</div><div>Loadouts Criados</div></div>
+        </div>
 
-CREATE TABLE acessorios (
-    id_acessorio INT AUTO_INCREMENT PRIMARY KEY,
-    nome VARCHAR(100) NOT NULL,
-    id_tipo INT NOT NULL,
-    bonus_dano INT DEFAULT 0,
-    bonus_mobilidade INT DEFAULT 0,
-    bonus_precisao INT DEFAULT 0,
-    bonus_controle_recuo INT DEFAULT 0,
-    descricao TEXT,
-    FOREIGN KEY (id_tipo) REFERENCES tipos_acessorios(id_tipo)
-);
+        <!-- =================== CARROSSEL DE BANNERS =================== -->
+        <!-- SUBSTITUA OS LINKS DAS IMAGENS ABAIXO PELAS SUAS PRÓPRIAS -->
+        <!-- ============================================================= -->
+        <div class="banner-container">
+          <div class="banner-track" id="bannerTrack">
+            <!-- BANNER 1 - MODO ROYALE BLACK OPS 6 -->
+            <div class="banner-slide">
+              <img src="https://t3.ftcdn.net/jpg/06/35/91/98/360_F_635919818_eRo1Iie9KQlPJSK0HvMp96p4wCmUKkiW.jpg" alt="warzone royale">
+              <div class="banner-overlay">
+                <h3>Modo Royale · Black Ops 6</h3>
+                <p>Novo mapa e mecânicas de combate</p>
+              </div>
+            </div>
+            <!-- BANNER 2 - RESSURGÊNCIA MODO DUO -->
+            <div class="banner-slide">
+              <img src="https://t3.ftcdn.net/jpg/11/63/70/32/360_F_1163703261_2Dqx3XnVNUmbGdSbS6h8pvvCjTTS6T6R.jpg" alt="resurgence duo">
+              <div class="banner-overlay">
+                <h3>Ressurgência · Modo Duo</h3>
+                <p>Volte à ação com seu parceiro</p>
+              </div>
+            </div>
+            <!-- BANNER 3 - NOVO PACOTE ADICIONADO -->
+            <div class="banner-slide">
+              <img src="https://t3.ftcdn.net/jpg/05/36/36/68/360_F_536366823_XcGr4cJ2FTl4hTZq4fOH2g3cMmZxx2tV.jpg" alt="novo pacote">
+              <div class="banner-overlay">
+                <h3>Novo Pacote Adicionado!</h3>
+                <p>Operador Shadow Company + skins exclusivas</p>
+              </div>
+            </div>
+          </div>
+          <div class="carousel-controls">
+            <button class="carousel-btn" id="bannerPrev"><i class="fas fa-chevron-left"></i></button>
+            <button class="carousel-btn" id="bannerNext"><i class="fas fa-chevron-right"></i></button>
+          </div>
+        </div>
 
-INSERT INTO acessorios 
-(nome, id_tipo, bonus_dano, bonus_mobilidade, bonus_precisao, bonus_controle_recuo, descricao)
-VALUES
-('Monolithic Suppressor', 1, 2, -1, 0, 0, 'Aumenta alcance e dano, mas reduz levemente a mobilidade.'),
-('Compensator', 1, 0, 0, 0, 4, 'Melhora o controle de recuo.'),
-('Flash Hider', 1, 0, 0, 1, 1, 'Reduz clarão e melhora estabilidade.'),
-('Monolithic', 1, 2, -1, 0, 0, 'Supressor voltado para alcance e dano.'),
-('Supressor', 1, 1, 0, 0, 0, 'Reduz som dos disparos e melhora alcance.'),
-('Silenciador', 1, 1, -1, 0, 0, 'Reduz ruído e melhora dano à distância.'),
-('Break', 1, 0, 0, 0, 3, 'Auxilia no controle do recuo.'),
-('Flash', 1, 0, 0, 1, 0, 'Reduz clarão dos disparos.'),
-('LongShot Barrel', 2, 3, -2, 0, 0, 'Cano para maior dano e alcance.'),
-('Precision Barrel', 2, 1, -1, 3, 0, 'Melhora precisão geral.'),
-('Factory', 2, 0, 0, 0, 0, 'Cano padrão da arma.'),
-('Prolite', 2, 0, 1, 2, 0, 'Cano leve para mobilidade e precisão.'),
-('Task Force', 2, 2, -1, 1, 0, 'Cano forte para dano e controle.'),
-('KAS-10', 2, 2, -1, 2, 0, 'Cano estável para médio alcance.'),
-('Rapid Fire', 2, 0, 1, 0, -1, 'Aumenta velocidade de disparo, mas reduz controle.'),
-('Short', 2, 0, 2, -1, 0, 'Cano curto para maior mobilidade.'),
-('Stabilizer', 2, 0, 0, 2, 2, 'Melhora estabilidade e precisão.'),
-('Long', 2, 2, -2, 1, 0, 'Cano longo para alcance.'),
-('FJX 22"', 2, 3, -2, 2, 0, 'Cano longo para fuzil de precisão.'),
-('22" OMX', 2, 3, -2, 2, 0, 'Cano pesado para precisão.'),
-('Leve', 2, 0, 2, 0, 0, 'Cano leve para pistola.'),
-('Padrão', 2, 0, 0, 0, 0, 'Configuração padrão.'),
-('FTAC Ripper', 3, 0, 0, 4, 0, 'Melhora precisão e estabilidade.'),
-('Commando', 3, 0, 0, 0, 4, 'Melhora controle de recuo.'),
-('Ranger', 3, 0, -1, 2, 2, 'Acessório equilibrado para controle e precisão.'),
-('Merc', 3, 0, 1, 0, 1, 'Bom para combate próximo.'),
-('Guard', 3, 0, 0, 1, 2, 'Melhora estabilidade.'),
-('Bipod', 3, 0, -1, 3, 3, 'Aumenta estabilidade em longas distâncias.'),
-('None', 3, 0, 0, 0, 0, 'Sem acessório.'),
-('40 Round', 4, 0, -1, 0, 0, 'Carregador de 40 munições.'),
-('45 Round', 4, 0, -2, 0, 0, 'Carregador de 45 munições.'),
-('50 Drum', 4, 0, -3, 0, 0, 'Tambor de 50 munições.'),
-('60 Drum', 4, 0, -4, 0, 0, 'Tambor de 60 munições.'),
-('40 Mags', 4, 0, -1, 0, 0, 'Carregador de 40 munições.'),
-('50 Mags', 4, 0, -2, 0, 0, 'Carregador de 50 munições.'),
-('30 Mags', 4, 0, 0, 0, 0, 'Carregador padrão de 30 munições.'),
-('45 Mags', 4, 0, -2, 0, 0, 'Carregador de 45 munições.'),
-('Explosive', 4, 3, -2, 0, 0, 'Munição explosiva de alto dano.'),
-('High Velocity', 4, 1, 0, 1, 0, 'Munição de alta velocidade.'),
-('Standard', 4, 0, 0, 0, 0, 'Munição padrão.'),
-('5 Round', 4, 0, 1, 0, 0, 'Carregador leve de 5 munições.'),
-('10 Round', 4, 0, 0, 0, 0, 'Carregador de 10 munições.'),
-('15 Mags', 4, 0, 1, 0, 0, 'Carregador leve de pistola.'),
-('VLK 4x', 5, 0, -1, 2, 0, 'Mira de aproximação 4x.'),
-('Aim Op', 5, 0, 0, 1, 0, 'Mira limpa para médio alcance.'),
-('Cronen', 5, 0, 0, 1, 0, 'Mira tática equilibrada.'),
-('Micro Reflex', 5, 0, 1, 1, 0, 'Mira leve para curta distância.'),
-('Red Dot', 5, 0, 1, 0, 0, 'Mira simples e rápida.'),
-('Holotherm', 5, 0, -1, 2, 0, 'Mira térmica para visualização avançada.'),
-('Thermal', 5, 0, -2, 3, 0, 'Mira térmica para longas distâncias.'),
-('Sniper Scope', 5, 0, -2, 4, 0, 'Mira de precisão para sniper.'),
-('Raptor', 5, 0, -2, 4, 0, 'Mira avançada para sniper.'),
-('Mini', 5, 0, 1, 0, 0, 'Mira pequena para pistola.'),
-('Holographic', 5, 0, 0, 1, 0, 'Mira holográfica.'),
-('Dual Zoom', 5, 0, -1, 3, 0, 'Mira com zoom ajustável.');
+        <div class="features-container">
+          <div class="feature glass-card"><i class="fas fa-gun"></i><h3>Construtor Tático</h3><p>Monte sua arma com attachments reais e veja estatísticas em tempo real</p></div>
+          <div class="feature glass-card"><i class="fas fa-chart-line"></i><h3>Meta Ranking</h3><p>Top armas por uso e taxa de vitória — atualizado diariamente</p></div>
+          <div class="feature glass-card"><i class="fas fa-database"></i><h3>Arquivo Pessoal</h3><p>Salve seus loadouts favoritos e acesse de qualquer lugar</p></div>
+        </div>
+      </div>
+    </section>
 
--- =========================================================
--- COMPATIBILIDADE ENTRE ARMAS E ACESSÓRIOS
--- Neste protótipo, todos os acessórios são liberados para todas as armas.
--- Em uma versão real, você pode cadastrar apenas os compatíveis.
--- =========================================================
+    <!-- ===================================================================== -->
+    <!-- SEÇÃO COMANDO (DASHBOARD)                                             -->
+    <section id="dashboard-section">
+      <div class="container">
+        <div class="glass" style="padding: 2rem;">
+          <div class="dashboard-grid">
+            <div class="dashboard-info">
+              <h2 style="font-size: 1.8rem;">Intel de Campo</h2>
+              <p style="color:#94a3b8; margin: 0.5rem 0 1rem;">Dados extraídos de partidas ranqueadas - atualização automática</p>
+              <div class="dashboard-stats">
+                <div class="stat-badge"><div class="value" id="liveUsage">34.2</div><div>Uso (MK35 ISR)</div></div>
+                <div class="stat-badge"><div class="value" id="liveWin">56.3</div><div>Taxa de Vitória</div></div>
+                <div class="stat-badge"><div class="value" id="liveTrend">+2.1</div><div>Tendência (7d)</div></div>
+              </div>
+              <button class="btn-primary" id="heroBuilderBtn">Criar Loadout</button>
+            </div>
+            <!-- ======================== DESTAQUE DA DASHBOARD ======================== -->
+            <!-- AQUI VOCÊ PODE SUBSTITUIR O ÍCONE POR UMA IMAGEM DE ARMA              -->
+            <!-- EXEMPLO: <img src="SEU_LINK_DA_IMAGEM" style="max-width:200px;">      -->
+            <!-- ======================================================================= -->
+            <div class="weapon-visual">
+              <i class="fas fa-gun"></i>  <!-- SUBSTITUA ESSA LINHA POR UMA TAG <img> SE DESEJAR -->
+              <p style="margin-top: 1rem; font-weight: 600;">MK35 ISR · Meta absoluto</p>
+              <p style="font-size: 0.8rem; color:#64748b;">Maior taxa de escolha para longo alcance</p>
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 1.5rem; margin-top: 2rem;">
+          <div class="info-card" style="flex:1;"><strong>Tempo de Abate (3 placas):</strong> 612ms · <strong>Dano por tiro:</strong> 43</div>
+          <div class="info-card" style="flex:1;"><strong>Patch Season 2:</strong> MK35 ISR lidera o meta · VST SMG em alta</div>
+          <div class="info-card" style="flex:1;"><strong>Comunidade Ativa:</strong> 189.000 operadores · 3.1M simulações</div>
+        </div>
+      </div>
+    </section>
 
-CREATE TABLE armas_acessorios (
-    id_arma INT NOT NULL,
-    id_acessorio INT NOT NULL,
-    PRIMARY KEY (id_arma, id_acessorio),
-    FOREIGN KEY (id_arma) REFERENCES armas(id_arma),
-    FOREIGN KEY (id_acessorio) REFERENCES acessorios(id_acessorio)
-);
+    <!-- ===================================================================== -->
+    <!-- SEÇÃO ARSENAL (TODAS AS ARMAS)                                        -->
+    <!-- AS IMAGENS SÃO DEFINIDAS DENTRO DO JAVASCRIPT, NA CONST weaponsDB     */
+    /* DENTRO DE CADA ARMA, SUBSTITUA A PROPRIEDADE "image" PELO SEU LINK     */
+    /* AS NOVAS ARMAS ESTÃO NO TOPO COM COMENTÁRIOS DESTACADOS                */
+    /* ===================================================================== -->
+    <section id="arsenal-section">
+      <div class="container">
+        <h2 style="font-size: 1.8rem;">Arsenal Completo</h2>
+        <p style="color:#94a3b8; margin-bottom: 1rem;">Selecione uma arma para carregar no construtor</p>
+        <div class="arsenal-grid" id="arsenalGrid"></div>
+      </div>
+    </section>
 
-INSERT INTO armas_acessorios (id_arma, id_acessorio)
-SELECT a.id_arma, ac.id_acessorio
-FROM armas a
-CROSS JOIN acessorios ac;
+    <!-- ===================================================================== -->
+    <!-- SEÇÃO CONSTRUTOR                                                     -->
+    <!-- ===================================================================== -->
+    <section id="builder-section">
+      <div class="container">
+        <div class="glass" style="padding: 2rem;">
+          <h2 style="font-size: 1.8rem;">Gunsmith · Construtor</h2>
+          <div class="builder-layout">
+            <div class="attachments-panel">
+              <select id="weaponSelectBuilder" style="width:100%; margin-bottom:1rem;"></select>
+              <div id="attachmentList"></div>
+              <button id="saveLoadoutBtn" class="btn-primary" style="margin-top:1rem; width:100%;">Salvar Loadout</button>
+            </div>
+            <div class="attachments-panel">
+              <canvas id="radarBuilderCanvas" width="300" height="280"></canvas>
+              <div id="buildCodeDisplay" style="margin-top:1rem; text-align:center; font-family: monospace;"></div>
+            </div>
+          </div>
+          <div id="statComparison" style="display: flex; gap: 1.5rem; flex-wrap: wrap; margin-top: 1.5rem; justify-content: center;"></div>
+        </div>
+      </div>
+    </section>
 
--- =========================================================
--- LOADOUTS
--- Guarda builds criadas por usuários.
--- =========================================================
+    <!-- ===================================================================== -->
+    <!-- SEÇÃO RANKING                                                        -->
+    <!-- ===================================================================== -->
+    <section id="ranking-section">
+      <div class="container">
+        <div class="glass" style="padding: 2rem;">
+          <h2 style="font-size: 1.8rem;">Meta Ranking · Top Armas</h2>
+          <p style="color:#94a3b8; margin-bottom: 1rem;">Baseado em dados reais da comunidade (atualizado a cada 6h)</p>
+          <div class="ranking-dashboard" id="rankingDashboard"></div>
+        </div>
+      </div>
+    </section>
 
-CREATE TABLE loadouts (
-    id_loadout INT AUTO_INCREMENT PRIMARY KEY,
-    id_usuario INT NOT NULL,
-    id_arma INT NOT NULL,
-    nome_loadout VARCHAR(100) NOT NULL,
-    codigo_build VARCHAR(50),
-    data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario),
-    FOREIGN KEY (id_arma) REFERENCES armas(id_arma)
-);
+    <!-- ===================================================================== -->
+    <!-- SEÇÃO ARQUIVO (LOADOUTS SALVOS)                                       -->
+    <!-- ===================================================================== -->
+    <section id="saved-section">
+      <div class="container">
+        <div class="glass" style="padding: 2rem;">
+          <h2 style="font-size: 1.8rem;">Meus Loadouts</h2>
+          <div id="savedLoadoutsContainer"></div>
+          <button id="clearAllLoadouts" class="btn-outline" style="border-color:#ef4444; color:#ef4444; margin-top:1rem;">Limpar Todos</button>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer>© 2026 ESMERALD — Dados dinâmicos integrados | Sistema de inteligência competitiva</footer>
 
-CREATE TABLE loadout_acessorios (
-    id_loadout INT NOT NULL,
-    id_acessorio INT NOT NULL,
-    PRIMARY KEY (id_loadout, id_acessorio),
-    FOREIGN KEY (id_loadout) REFERENCES loadouts(id_loadout) ON DELETE CASCADE,
-    FOREIGN KEY (id_acessorio) REFERENCES acessorios(id_acessorio)
-);
+  <!-- MODAL DE LOGIN/CADASTRO -->
+  <div id="authModal" class="modal">
+    <div class="modal-content">
+      <div style="display:flex; gap:1rem; margin-bottom:1rem;">
+        <button id="showLoginBtn" class="btn-outline" style="flex:1;">LOGIN</button>
+        <button id="showSignupBtn" class="btn-outline" style="flex:1;">CADASTRAR</button>
+      </div>
+      <div id="loginForm">
+        <input type="email" id="loginEmail" placeholder="Email">
+        <input type="password" id="loginPassword" placeholder="Senha">
+        <button id="doLoginBtn" class="btn-primary" style="width:100%; margin-top:1rem;">ENTRAR</button>
+      </div>
+      <div id="signupForm" style="display:none;">
+        <input type="text" id="signupName" placeholder="Nome">
+        <input type="email" id="signupEmail" placeholder="Email">
+        <input type="password" id="signupPassword" placeholder="Senha">
+        <button id="doSignupBtn" class="btn-primary" style="width:100%; margin-top:1rem;">CRIAR CONTA</button>
+      </div>
+      <button id="closeModalBtn" class="btn-outline" style="margin-top:1rem; width:100%;">FECHAR</button>
+    </div>
+  </div>
 
--- =========================================================
--- RANKING DE ARMAS
--- Guarda posição, uso, vitória e tendência das armas.
--- =========================================================
+  <script>
+    // =====================================================================
+    // BANCO DE ARMAS (TODAS AS ARMAS OFICIAIS DO WARZONE BO6/BO7)
+    // AS PRIMEIRAS 12 ARMAS SÃO AS NOVAS SOLICITADAS (TOP DO META)
+    // DENTRO DE CADA ARMA, SUBSTITUA A URL DA IMAGEM EM "image"
+    // =====================================================================
+    const weaponsDB = [
+      // ========== NOVAS ARMAS (META ATUAL) - COLOQUE SUAS IMAGENS AQUI ==========
+      { id:0, name:"MK35 ISR", category:"Fuzil Assalto", baseDmg:43, fireRate:680, baseMob:68, baseAcc:89, recoil:74, usage:38.4, winRate:56.3, 
+        image:"https://t4.ftcdn.net/jpg/05/68/60/33/360_F_568603373_myYg5WDPyja669cX4gMLRO7FdxxhbPtS.jpg", 
+        attachments:{ muzzle:["Monolithic Suppressor","Compensator","Flash Hider"], barrel:["LongShot Barrel","Precision Barrel","Factory"], underbarrel:["FTAC Ripper","Commando","Ranger"], mag:["40 Round","45 Round","50 Drum"], optic:["VLK 4x","Aim Op","Cronen"] }, statMods:{ muzzle:{"Monolithic Suppressor":{damage:2,mobility:-1}}, barrel:{"LongShot Barrel":{damage:3,mobility:-2}}, underbarrel:{"FTAC Ripper":{accuracy:4}}, mag:{"40 Round":{mobility:-1}} } },
+      { id:1, name:"Peacekeeper Mk1", category:"Fuzil Assalto", baseDmg:41, fireRate:720, baseMob:74, baseAcc:87, recoil:72, usage:34.1, winRate:54.2, 
+        image:"https://t3.ftcdn.net/jpg/06/10/02/84/360_F_610028426_rb5JCwgkZucqtLNLod4BCRrOLLSAnA9u.jpg", 
+        attachments:{ muzzle:["Monolithic","Compensator"], barrel:["Prolite","Task Force"], underbarrel:["Merc","Commando"], mag:["40 Round","50 Drum"], optic:["Micro Reflex","Red Dot"] }, statMods:{} },
+      { id:2, name:"Voyak KT-3", category:"Fuzil Assalto", baseDmg:42, fireRate:700, baseMob:70, baseAcc:86, recoil:75, usage:31.8, winRate:53.7, 
+        image:"https://t4.ftcdn.net/jpg/05/68/60/33/360_F_568603356_YdbRu1rIdBdIvS2D5DigkeQU8YspIHlT.jpg", 
+        attachments:{ muzzle:["Silenciador","Break"], barrel:["KAS-10","Precision"], underbarrel:["Guard","Ranger"], mag:["40 Mags","50 Drum"], optic:["Holotherm","VLK"] }, statMods:{} },
+      { id:3, name:"VST", category:"Submetralhadora", baseDmg:35, fireRate:960, baseMob:95, baseAcc:82, recoil:69, usage:33.2, winRate:54.9, 
+        image:"https://t3.ftcdn.net/jpg/06/93/57/14/360_F_693571489_k8HHi7Owa04ijypL2Dj3qHoUg10Vjt4I.jpg", 
+        attachments:{ muzzle:["Supressor","Flash"], barrel:["Rapid Fire","Short"], underbarrel:["Merc","Guard"], mag:["50 Drum","40 Mags"], optic:["Micro Reflex","Red Dot"] }, statMods:{} },
+      { id:4, name:"Razor 9mm", category:"Submetralhadora", baseDmg:36, fireRate:940, baseMob:96, baseAcc:83, recoil:70, usage:32.5, winRate:54.1, 
+        image:"https://t3.ftcdn.net/jpg/05/36/36/68/360_F_536366823_XcGr4cJ2FTl4hTZq4fOH2g3cMmZxx2tV.jpg", 
+        attachments:{ muzzle:["Monolithic","Compensator"], barrel:["Stabilizer","Short"], underbarrel:["FTAC","Ranger"], mag:["40 Mags","50 Drum"], optic:["Cronen","Red Dot"] }, statMods:{} },
+      { id:5, name:"Kogot-7", category:"Submetralhadora", baseDmg:34, fireRate:970, baseMob:97, baseAcc:81, recoil:68, usage:30.8, winRate:53.4, 
+        image:"https://t3.ftcdn.net/jpg/11/63/70/32/360_F_1163703261_2Dqx3XnVNUmbGdSbS6h8pvvCjTTS6T6R.jpg", 
+        attachments:{ muzzle:["Supressor","Flash"], barrel:["Rapid","Stabilized"], underbarrel:["Merc","Guard"], mag:["50 Drum","30 Mags"], optic:["Micro","Red Dot"] }, statMods:{} },
+      { id:6, name:"Dravec 45", category:"Submetralhadora", baseDmg:37, fireRate:890, baseMob:91, baseAcc:84, recoil:72, usage:29.4, winRate:52.9, 
+        image:"https://t3.ftcdn.net/jpg/06/35/91/98/360_F_635919818_eRo1Iie9KQlPJSK0HvMp96p4wCmUKkiW.jpg", 
+        attachments:{ muzzle:["Compensator","Flash"], barrel:["Long","Short"], underbarrel:["Ranger","Guard"], mag:["45 Mags","50 Drum"], optic:["Reflex","Red Dot"] }, statMods:{} },
+      { id:7, name:"Hawker HX", category:"Fuzil Precisão", baseDmg:99, fireRate:45, baseMob:43, baseAcc:96, recoil:86, usage:25.3, winRate:60.1, 
+        image:"https://t4.ftcdn.net/jpg/05/68/60/33/360_F_568603373_myYg5WDPyja669cX4gMLRO7FdxxhbPtS.jpg", 
+        attachments:{ muzzle:["Silenciador","Break"], barrel:["FJX 22\"","Factory"], underbarrel:["Bipod","None"], mag:["Explosive","High Velocity"], optic:["Thermal","Sniper Scope"] }, statMods:{} },
+      { id:8, name:"Strider 300", category:"Fuzil Precisão", baseDmg:97, fireRate:50, baseMob:45, baseAcc:94, recoil:84, usage:23.7, winRate:58.6, 
+        image:"https://t3.ftcdn.net/jpg/06/10/02/84/360_F_610028426_rb5JCwgkZucqtLNLod4BCRrOLLSAnA9u.jpg", 
+        attachments:{ muzzle:["Silenciador","Monolithic"], barrel:["22\" OMX","Short"], underbarrel:["Ranger","Bipod"], mag:["5 Round","10 Round"], optic:["Raptor","Thermal"] }, statMods:{} },
+      { id:9, name:"Velox 5.7", category:"Pistola", baseDmg:52, fireRate:320, baseMob:96, baseAcc:84, recoil:82, usage:18.5, winRate:48.2, 
+        image:"https://t4.ftcdn.net/jpg/05/68/60/33/360_F_568603356_YdbRu1rIdBdIvS2D5DigkeQU8YspIHlT.jpg", 
+        attachments:{ muzzle:["Monolithic","Compensator"], barrel:["Leve","Padrão"], underbarrel:["None"], mag:["15 Mags","30 Mags"], optic:["Mini","Red Dot"] }, statMods:{} },
+      
+      // ========== ARMAS LEGADO (MANTER COMO ESTÃO) ==========
+      { id:10, name:"TAQ-56", category:"Fuzil Assalto", baseDmg:41, fireRate:710, baseMob:72, baseAcc:86, recoil:72, usage:34.2, winRate:54.8, 
+        image:"https://t4.ftcdn.net/jpg/05/68/60/33/360_F_568603373_myYg5WDPyja669cX4gMLRO7FdxxhbPtS.jpg", 
+        attachments:{ muzzle:["Monolithic Suppressor","Compensator","Flash Hider"], barrel:["Prolite Barrel","LongShot Barrel","18\" Precision"], underbarrel:["FTAC Ripper","Commando","Merc"], mag:["40 Round","45 Round","60 Drum"], optic:["Aim Op","VLK 4x","Cronen"] }, 
+        statMods:{ muzzle:{"Monolithic Suppressor":{damage:2,mobility:-1},"Compensator":{recoilControl:4}}, barrel:{"Prolite Barrel":{accuracy:4,mobility:1},"LongShot Barrel":{damage:2,mobility:-2}}, underbarrel:{"FTAC Ripper":{accuracy:3},"Commando":{recoilControl:4}}, mag:{"40 Round":{mobility:-1},"45 Round":{mobility:-2}} } 
+      },
+      { id:11, name:"ISO HAVOC", category:"Submetralhadora", baseDmg:34, fireRate:980, baseMob:94, baseAcc:81, recoil:68, usage:29.5, winRate:53.2, 
+        image:"https://t3.ftcdn.net/jpg/11/63/70/32/360_F_1163703261_2Dqx3XnVNUmbGdSbS6h8pvvCjTTS6T6R.jpg", 
+        attachments:{ muzzle:["Supressor","Flash Hider","Compensator"], barrel:["Rapid Fire","Stabilizer","Short"], underbarrel:["Merc","Guard","Ranger"], mag:["50 Drum","40 Mags","30 Mags"], optic:["Micro Reflex","Red Dot","Holographic"] }, statMods:{} 
+      },
+      { id:12, name:"FJX Imperium", category:"Fuzil Precisão", baseDmg:98, fireRate:48, baseMob:44, baseAcc:95, recoil:85, usage:24.1, winRate:59.1, 
+        image:"https://t3.ftcdn.net/jpg/06/93/57/14/360_F_693571489_k8HHi7Owa04ijypL2Dj3qHoUg10Vjt4I.jpg", 
+        attachments:{ muzzle:["Silenciador","Break","Monolithic"], barrel:["FJX 22\"","Factory","Short"], underbarrel:["Bipod","None","Ranger"], mag:["Explosive","Standard","High Velocity"], optic:["Thermal","Sniper Scope","Dual Zoom"] }, statMods:{} 
+      }
+    ];
 
-CREATE TABLE ranking_armas (
-    id_ranking INT AUTO_INCREMENT PRIMARY KEY,
-    id_arma INT NOT NULL,
-    posicao INT NOT NULL,
-    taxa_uso DECIMAL(5,2) NOT NULL,
-    taxa_vitoria DECIMAL(5,2) NOT NULL,
-    tendencia DECIMAL(5,2) DEFAULT 0.00,
-    data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (id_arma) REFERENCES armas(id_arma)
-);
+    // =====================================================================
+    // VARIÁVEIS GLOBAIS E LÓGICA DO SISTEMA (NÃO ALTERAR A MENOS QUE SAIBA)
+    // =====================================================================
+    let currentWeapon = weaponsDB[0];
+    let selectedAttachments = { muzzle:"Monolithic Suppressor", barrel:"LongShot Barrel", underbarrel:"FTAC Ripper", mag:"40 Round", optic:"VLK 4x" };
+    let savedLoadouts = JSON.parse(localStorage.getItem("esmerald_loadouts") || "[]");
+    let users = JSON.parse(localStorage.getItem("esmerald_users") || "[]");
+    let currentUser = localStorage.getItem("esmerald_user") || null;
+    let radarChart = null;
+    let bannerInterval;
 
-INSERT INTO ranking_armas (id_arma, posicao, taxa_uso, taxa_vitoria, tendencia)
-SELECT 
-    id_arma,
-    ROW_NUMBER() OVER (ORDER BY taxa_uso DESC) AS posicao,
-    taxa_uso,
-    taxa_vitoria,
-    ROUND(RAND() * 2 + 0.5, 2) AS tendencia
-FROM armas;
+    function showToast(msg){ let t=document.createElement("div"); t.innerText=msg; t.style.cssText="position:fixed; bottom:20px; right:20px; padding:10px 16px; background:#0a1922; border:1px solid #3b82f6; border-radius:12px; z-index:9999; font-size:0.8rem;"; document.body.appendChild(t); setTimeout(()=>t.remove(),2500); }
+    function updateAuthUI(){ let c=document.getElementById("authContainer"); if(!c) return; if(currentUser){ c.innerHTML=`<div class="user-badge"><span>${currentUser}</span> <button id="logoutBtn" class="btn-outline" style="padding:0.2rem 0.8rem;">SAIR</button></div>`; document.getElementById("logoutBtn")?.addEventListener("click",()=>{ currentUser=null; localStorage.removeItem("esmerald_user"); updateAuthUI(); showToast("Logout efetuado"); }); } else { c.innerHTML=`<button id="showAuthModalBtn" class="btn-outline" style="padding:0.4rem 1rem;">ENTRAR</button>`; document.getElementById("showAuthModalBtn")?.addEventListener("click",()=>openAuthModal()); } }
+    function openAuthModal(){ document.getElementById("authModal").style.display="flex"; }
+    function closeAuthModal(){ document.getElementById("authModal").style.display="none"; }
+    document.getElementById("showLoginBtn")?.addEventListener("click",()=>{ document.getElementById("loginForm").style.display="block"; document.getElementById("signupForm").style.display="none"; });
+    document.getElementById("showSignupBtn")?.addEventListener("click",()=>{ document.getElementById("loginForm").style.display="none"; document.getElementById("signupForm").style.display="block"; });
+    document.getElementById("doLoginBtn")?.addEventListener("click",()=>{ let e=document.getElementById("loginEmail").value, p=document.getElementById("loginPassword").value; let u=users.find(u=>u.email===e && u.password===p); if(u){ currentUser=u.name; localStorage.setItem("esmerald_user",currentUser); updateAuthUI(); closeAuthModal(); showToast(`Bem-vindo, ${currentUser}`); } else showToast("Email ou senha inválidos"); });
+    document.getElementById("doSignupBtn")?.addEventListener("click",()=>{ let n=document.getElementById("signupName").value, e=document.getElementById("signupEmail").value, p=document.getElementById("signupPassword").value; if(!n||!e||!p){ showToast("Preencha todos os campos"); return; } if(users.find(u=>u.email===e)){ showToast("Email já cadastrado"); return; } users.push({name:n,email:e,password:p}); localStorage.setItem("esmerald_users",JSON.stringify(users)); currentUser=n; localStorage.setItem("esmerald_user",currentUser); updateAuthUI(); closeAuthModal(); showToast(`Conta criada! Bem-vindo, ${n}`); });
+    document.getElementById("closeModalBtn")?.addEventListener("click",closeAuthModal);
 
--- =========================================================
--- BANNERS DA HOME
--- Guarda os banners do carrossel inicial.
--- =========================================================
+    function updateBuilderStats(){ let b=currentWeapon, dDmg=0,dMob=0,dAcc=0; Object.keys(selectedAttachments).forEach(s=>{ let a=selectedAttachments[s]; if(b.statMods[s]&&b.statMods[s][a]){ let m=b.statMods[s][a]; dDmg+=m.damage||0; dMob+=m.mobility||0; dAcc+=m.accuracy||0; } }); let fD=Math.max(20,b.baseDmg+dDmg), fM=Math.max(30,b.baseMob+dMob), fA=Math.min(100,b.baseAcc+dAcc); document.getElementById("statComparison").innerHTML=`<div class="stat-badge">DANO<br><strong style="font-size:1.8rem;">${fD}</strong></div><div class="stat-badge">MOBILIDADE<br><strong style="font-size:1.8rem;">${fM}</strong></div><div class="stat-badge">PRECISÃO<br><strong style="font-size:1.8rem;">${fA}</strong></div>`; if(radarChart) radarChart.destroy(); let ctx=document.getElementById("radarBuilderCanvas").getContext("2d"); radarChart=new Chart(ctx,{ type:'radar', data:{ labels:['Dano','Mobilidade','Precisão','Controle'], datasets:[{ label:b.name, data:[fD,fM,fA,b.recoil], backgroundColor:'rgba(59,130,246,0.2)', borderColor:'#3b82f6', borderWidth:2 }] }, options:{ scales:{ r:{ min:0,max:100,ticks:{color:'#94a3b8'} } } } }); let code=`${b.name.substring(0,3)}-${selectedAttachments.barrel.substring(0,4)}-${Math.floor(100+Math.random()*900)}`; document.getElementById("buildCodeDisplay").innerHTML=`BUILD CODE: ${code} <button id="copyBuildCode" class="btn-outline" style="margin-left:8px;">COPIAR</button>`; document.getElementById("copyBuildCode")?.addEventListener("click",()=>{ navigator.clipboard.writeText(code); showToast("Código copiado"); }); }
+    function renderAttachments(){ let c=document.getElementById("attachmentList"); if(!c) return; let slots=["muzzle","barrel","underbarrel","mag","optic"]; c.innerHTML=slots.map(s=>`<div class="attach-slot"><label>${s.toUpperCase()}</label><select id="select_${s}">${currentWeapon.attachments[s].map(opt=>`<option value="${opt}" ${selectedAttachments[s]===opt?'selected':''}>${opt}</option>`).join('')}</select></div>`).join(''); slots.forEach(s=>{ document.getElementById(`select_${s}`).addEventListener("change",(e)=>{ selectedAttachments[s]=e.target.value; updateBuilderStats(); }); }); updateBuilderStats(); }
+    function renderArsenal(){ let c=document.getElementById("arsenalGrid"); if(c) c.innerHTML=weaponsDB.map(w=>`<div class="weapon-card" onclick="selectWeaponForBuilder('${w.name}')"><img src="${w.image}"><h3>${w.name}</h3><p>${w.category}</p><div style="color:#60a5fa;">${w.usage}% uso · ${w.winRate}% vitória</div></div>`).join(''); }
+    window.selectWeaponForBuilder=function(name){ let w=weaponsDB.find(w=>w.name===name); if(w){ currentWeapon=w; selectedAttachments={ muzzle:w.attachments.muzzle[0], barrel:w.attachments.barrel[0], underbarrel:w.attachments.underbarrel[0], mag:w.attachments.mag[0], optic:w.attachments.optic[0] }; renderAttachments(); document.getElementById("builder-section").scrollIntoView({behavior:"smooth"}); showToast(`${w.name} carregado no construtor`); } };
+    function renderRanking(){ let c=document.getElementById("rankingDashboard"); if(!c) return; let sorted=[...weaponsDB].sort((a,b)=>b.usage-a.usage); c.innerHTML=`<div class="ranking-header"><div>ARMA</div><div>USO</div><div>VITÓRIA</div><div>TREND</div></div>`+sorted.map((w,idx)=>`<div class="ranking-row"><div><span style="color:#fbbf24; font-weight:800;">#${idx+1}</span> <img src="${w.image}" class="rank-img"> ${w.name}</div><div><div style="background:#1f3a4b; border-radius:20px; height:6px; width:100px;"><div style="width:${w.usage}%; background:#3b82f6; height:6px; border-radius:20px;"></div></div> ${w.usage}%</div><div>${w.winRate}%</div><div class="trend-up" style="color:#10b981;">▲ +${(Math.random()*2).toFixed(1)}%</div></div>`).join(''); }
+    function saveCurrentLoadout(){ if(!currentUser){ showToast("Faça login para salvar loadouts"); openAuthModal(); return; } let name=prompt("Nome do loadout:"); if(!name) return; savedLoadouts.push({ id:Date.now(), name, user:currentUser, weaponName:currentWeapon.name, buildCode: document.getElementById("buildCodeDisplay")?.innerText?.split("BUILD CODE:")[1]?.trim()||"COD" }); localStorage.setItem("esmerald_loadouts",JSON.stringify(savedLoadouts)); showToast("Loadout salvo"); renderSavedLoadouts(); }
+    function renderSavedLoadouts(){ let c=document.getElementById("savedLoadoutsContainer"); if(!c) return; let userLoadouts=savedLoadouts.filter(l=>l.user===currentUser); if(userLoadouts.length===0){ c.innerHTML="<div class='glass' style='padding:1.5rem; text-align:center;'>Nenhum loadout salvo ainda. Use o construtor e clique em SALVAR.</div>"; return; } c.innerHTML=userLoadouts.map(ld=>`<div style="background:#071e2c; padding:1rem; border-radius:20px; margin-bottom:0.8rem; display:flex; justify-content:space-between; align-items:center;"><div><strong>${ld.name}</strong><br>${ld.weaponName} · <code>${ld.buildCode}</code></div><button class="deleteLoadout btn-outline" data-id="${ld.id}" style="border-color:#ef4444; color:#ef4444;">REMOVER</button></div>`).join(''); document.querySelectorAll(".deleteLoadout").forEach(btn=>{ btn.addEventListener("click",(e)=>{ let id=parseInt(btn.dataset.id); savedLoadouts=savedLoadouts.filter(l=>l.id!==id); localStorage.setItem("esmerald_loadouts",JSON.stringify(savedLoadouts)); renderSavedLoadouts(); showToast("Loadout removido"); }); }); }
+    document.getElementById("saveLoadoutBtn")?.addEventListener("click",saveCurrentLoadout);
+    document.getElementById("clearAllLoadouts")?.addEventListener("click",()=>{ if(confirm("Limpar todos os loadouts?")){ savedLoadouts=savedLoadouts.filter(l=>l.user!==currentUser); localStorage.setItem("esmerald_loadouts",JSON.stringify(savedLoadouts)); renderSavedLoadouts(); showToast("Todos os loadouts foram removidos"); } });
 
-CREATE TABLE banners (
-    id_banner INT AUTO_INCREMENT PRIMARY KEY,
-    titulo VARCHAR(150) NOT NULL,
-    subtitulo VARCHAR(255),
-    imagem_url TEXT,
-    ativo BOOLEAN DEFAULT TRUE,
-    ordem INT DEFAULT 1
-);
+    let bannerIdx=0, track=document.getElementById("bannerTrack");
+    function updateBanner(){ if(track) track.style.transform=`translateX(-${bannerIdx*100}%)`; }
+    function nextBanner(){ bannerIdx=(bannerIdx+1)%3; updateBanner(); }
+    function prevBanner(){ bannerIdx=(bannerIdx-1+3)%3; updateBanner(); }
+    document.getElementById("bannerNext")?.addEventListener("click",nextBanner);
+    document.getElementById("bannerPrev")?.addEventListener("click",prevBanner);
+    bannerInterval=setInterval(nextBanner,5500);
 
-INSERT INTO banners (titulo, subtitulo, imagem_url, ativo, ordem) VALUES
-('Modo Royale · Black Ops 6', 'Novo mapa e mecânicas de combate', 'https://t3.ftcdn.net/jpg/06/35/91/98/360_F_635919818_eRo1Iie9KQlPJSK0HvMp96p4wCmUKkiW.jpg', TRUE, 1),
-('Ressurgência · Modo Duo', 'Volte à ação com seu parceiro', 'https://t3.ftcdn.net/jpg/11/63/70/32/360_F_1163703261_2Dqx3XnVNUmbGdSbS6h8pvvCjTTS6T6R.jpg', TRUE, 2),
-('Novo Pacote Adicionado', 'Operador Shadow Company + skins exclusivas', 'https://t3.ftcdn.net/jpg/05/36/36/68/360_F_536366823_XcGr4cJ2FTl4hTZq4fOH2g3cMmZxx2tV.jpg', TRUE, 3);
+    setInterval(()=>{ let u=document.getElementById("liveUsage"), w=document.getElementById("liveWin"), t=document.getElementById("liveTrend"); if(u&&w&&t){ u.innerText=(parseFloat(u.innerText)+(Math.random()*0.6-0.3)).toFixed(1); w.innerText=(parseFloat(w.innerText)+(Math.random()*0.4-0.2)).toFixed(1); t.innerText="+"+(Math.random()*2+0.5).toFixed(1); } },3500);
 
--- =========================================================
--- ESTATÍSTICAS GERAIS DA HOME
--- Guarda números exibidos nos cards da página inicial.
--- =========================================================
+    function scrollToSection(id){ document.getElementById(id).scrollIntoView({ behavior:"smooth", block:"start" }); }
+    document.querySelectorAll(".nav-section").forEach(link=>{ link.addEventListener("click",(e)=>{ e.preventDefault(); let sec=link.getAttribute("data-section"); if(sec==="home") scrollToSection("home-section"); else if(sec==="dashboard") scrollToSection("dashboard-section"); else if(sec==="arsenal") scrollToSection("arsenal-section"); else if(sec==="builder") scrollToSection("builder-section"); else if(sec==="ranking") scrollToSection("ranking-section"); else if(sec==="saved") scrollToSection("saved-section"); document.querySelectorAll(".nav-section").forEach(l=>l.classList.remove("active")); link.classList.add("active"); }); });
+    document.getElementById("heroBuilderBtn")?.addEventListener("click",()=>scrollToSection("builder-section"));
+    document.getElementById("goToDashboardBtn")?.addEventListener("click",()=>scrollToSection("dashboard-section"));
+    document.getElementById("menuToggle")?.addEventListener("click",()=>document.getElementById("navLinks").classList.toggle("active"));
 
-CREATE TABLE estatisticas_sistema (
-    id_estatistica INT AUTO_INCREMENT PRIMARY KEY,
-    nome VARCHAR(100) NOT NULL,
-    valor VARCHAR(50) NOT NULL,
-    descricao TEXT
-);
-
-INSERT INTO estatisticas_sistema (nome, valor, descricao) VALUES
-('Simulações TTK', '+2.1M', 'Quantidade simulada de testes de tempo de abate.'),
-('Precisão Meta', '87%', 'Estimativa de precisão das recomendações de meta.'),
-('Loadouts Criados', '+12K', 'Quantidade de loadouts criados pelos usuários.');
-
--- =========================================================
--- VIEWS PARA CONSULTAS PRONTAS
--- Facilitam a apresentação e integração com backend.
--- =========================================================
-
-CREATE VIEW vw_armas_com_categoria AS
-SELECT 
-    a.id_arma,
-    a.nome AS arma,
-    c.nome_categoria AS categoria,
-    a.dano_base,
-    a.cadencia_tiro,
-    a.mobilidade_base,
-    a.precisao_base,
-    a.controle_recuo,
-    a.taxa_uso,
-    a.taxa_vitoria,
-    a.status_meta,
-    a.imagem_url
-FROM armas a
-INNER JOIN categorias_armas c ON a.id_categoria = c.id_categoria;
-
-CREATE VIEW vw_ranking_completo AS
-SELECT
-    r.posicao,
-    a.nome AS arma,
-    c.nome_categoria AS categoria,
-    r.taxa_uso,
-    r.taxa_vitoria,
-    r.tendencia,
-    r.data_atualizacao
-FROM ranking_armas r
-INNER JOIN armas a ON r.id_arma = a.id_arma
-INNER JOIN categorias_armas c ON a.id_categoria = c.id_categoria
-ORDER BY r.posicao ASC;
-
-CREATE VIEW vw_loadouts_completos AS
-SELECT
-    l.id_loadout,
-    u.nome AS usuario,
-    l.nome_loadout,
-    a.nome AS arma,
-    l.codigo_build,
-    l.data_criacao
-FROM loadouts l
-INNER JOIN usuarios u ON l.id_usuario = u.id_usuario
-INNER JOIN armas a ON l.id_arma = a.id_arma;
-
--- =========================================================
--- CONSULTAS DE TESTE
--- Use estas consultas para mostrar o banco funcionando na apresentação.
--- =========================================================
-
-SELECT * FROM vw_armas_com_categoria;
-SELECT * FROM vw_ranking_completo;
-SELECT * FROM banners WHERE ativo = TRUE ORDER BY ordem ASC;
-
-SELECT * 
-FROM vw_armas_com_categoria
-WHERE categoria = 'Submetralhadora';
-
-SELECT nome, taxa_vitoria
-FROM armas
-ORDER BY taxa_vitoria DESC
-LIMIT 5;
+    let ws=document.getElementById("weaponSelectBuilder");
+    if(ws){ ws.innerHTML=weaponsDB.map(w=>`<option ${currentWeapon.name===w.name?'selected':''}>${w.name}</option>`).join(''); ws.onchange=()=>{ currentWeapon=weaponsDB.find(w=>w.name===ws.value); renderAttachments(); }; }
+    renderAttachments(); renderArsenal(); renderRanking(); renderSavedLoadouts(); updateAuthUI();
+  </script>
+</body>
+</html>
