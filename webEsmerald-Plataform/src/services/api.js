@@ -1,0 +1,1 @@
+import axios from "axios";const api=axios.create({baseURL:"/api",timeout:8000});export async function carregarDashboard(){const response=await api.get("?action=dashboard");return response.data}export default api;
