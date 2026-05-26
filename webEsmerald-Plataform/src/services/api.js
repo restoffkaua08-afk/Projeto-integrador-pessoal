@@ -9,5 +9,3 @@ export async function carregarArmas() {
   const response = await api.get("?action=weapons");
   return response.data;
 }
-
-export default api;
