@@ -1,1 +1,13 @@
-import axios from "axios";const api=axios.create({baseURL:"/api",timeout:8000});export async function carregarDashboard(){const response=await api.get("?action=dashboard");return response.data}export default api;
+﻿import axios from "axios";
+
+const api = axios.create({
+  baseURL: "/api",
+  timeout: 8000
+});
+
+export async function carregarArmas() {
+  const response = await api.get("?action=weapons");
+  return response.data;
+}
+
+export default api;

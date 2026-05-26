@@ -1,1 +1,15 @@
-<?php function db(){ $conn=@new mysqli("localhost","root","","esmerald_db"); if($conn->connect_error){return null;} $conn->set_charset("utf8mb4"); return $conn;} function table_exists($conn,$table){if(!$conn)return false;$safe=$conn->real_escape_string($table);$res=$conn->query("SHOW TABLES LIKE " . chr(39) . $safe . chr(39));return $res&&$res->num_rows>0;} function count_table($conn,$table){if(!$conn||!table_exists($conn,$table))return 0;$res=$conn->query("SELECT COUNT(*) AS total FROM `$table`");if(!$res)return 0;$row=$res->fetch_assoc();return intval($row["total"]??0);} ?>
+﻿<?php
+function db() {
+    $conn = @new mysqli("localhost", "root", "", "esmerald_db");
+    if ($conn->connect_error) return null;
+    $conn->set_charset("utf8mb4");
+    return $conn;
+}
+
+function table_exists($conn, $table) {
+    if (!$conn) return false;
+    $safe = $conn->real_escape_string($table);
+    $res = $conn->query("SHOW TABLES LIKE '$safe'");
+    return $res && $res->num_rows > 0;
+}
+?>
